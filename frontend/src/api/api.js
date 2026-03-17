@@ -1,4 +1,4 @@
-export const API = "http://10.0.0.52:3000"
+export const API = "https://mobil-app-1.onrender.com"
 
 export async function login(usuario, password) {
   const res = await fetch(`${API}/auth/login`, {
