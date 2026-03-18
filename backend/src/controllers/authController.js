@@ -21,7 +21,11 @@ const login = async (req, res) => {
       })
     }
 
-    res.json({ ok: false })
+    res.json({ 
+      ok: true,
+      usuario: User.usuario,
+      ruta_id: user.ruta_id
+     })
 
   } catch (error) {
     console.error(error)
