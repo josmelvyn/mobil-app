@@ -5,7 +5,6 @@ import "leaflet/dist/leaflet.css"
 import { getClientes, enviarPunteo } from "../api/api"
 import { guardarOffline, obtenerOffline, limpiarOffline } from "../db/indexedDB"
 
-
 export default function Clientes({ user }) {
   const mapRef = useRef(null)
   const userMarkerRef = useRef(null)
@@ -15,207 +14,182 @@ export default function Clientes({ user }) {
   const [filtro, setFiltro] = useState("")
   const [vistaMapa, setVistaMapa] = useState(true)
   const [miUbicacion, setMiUbicacion] = useState(null)
+  const [haCentrado, setHaCentrado] = useState(false)
+  const [verCompletados, setVerCompletados] = useState(false)
+
+  // 💾 PERSISTENCIA: Cargar desde memoria del celular
+  const [visitados, setVisitados] = useState(() => {
+    const saved = localStorage.getItem("clientes_visitados")
+    return saved ? JSON.parse(saved) : []
+  })
+
+  useEffect(() => {
+    localStorage.setItem("clientes_visitados", JSON.stringify(visitados))
+  }, [visitados])
 
   // 🚀 INICIAR MAPA
   useEffect(() => {
     if (mapRef.current) return
-
-    const map = L.map("map").setView([19.4517, -70.6970], 15)
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png")
-      .addTo(map)
-
+    const map = L.map("map", { zoomControl: false }).setView([19.4517, -70.6970], 14)
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map)
     mapRef.current = map
   }, [])
 
-  // 📍 UBICACIÓN EN TIEMPO REAL (FIX REAL)
+  // 📍 GPS + AUTO-CENTRADO AL ABRIR
   useEffect(() => {
     if (!navigator.geolocation) return
-
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        const lat = pos.coords.latitude
-        const lon = pos.coords.longitude
+        const { latitude: lat, longitude: lon } = pos.coords
+        const coords = [lat, lon]
+        setMiUbicacion(coords)
 
-        setMiUbicacion([lat, lon])
-
-        if (!mapRef.current) return
-
-        if (!userMarkerRef.current) {
-          userMarkerRef.current = L.marker([lat, lon])
-            .addTo(mapRef.current)
-            .bindPopup("Estás aquí 📍")
-        } else {
-          userMarkerRef.current.setLatLng([lat, lon])
+        if (mapRef.current) {
+          if (!haCentrado) {
+            mapRef.current.flyTo(coords, 16)
+            setHaCentrado(true)
+          }
+          if (!userMarkerRef.current) {
+            userMarkerRef.current = L.circleMarker(coords, {
+              radius: 9, fillColor: "#3b82f6", color: "white", weight: 3, fillOpacity: 0.9
+            }).addTo(mapRef.current).bindPopup("Estás aquí")
+          } else {
+            userMarkerRef.current.setLatLng(coords)
+          }
         }
-
-        mapRef.current.setView([lat, lon])
       },
-      (err) => {
-        console.log("Error ubicación:", err)
-      },
-      { enableHighAccuracy: true }
+      null, { enableHighAccuracy: true }
     )
-
     return () => navigator.geolocation.clearWatch(watchId)
-  }, [])
+  }, [haCentrado])
 
   // 👥 CARGAR CLIENTES
   useEffect(() => {
-    if (!user) return
-
-    getClientes(user.ruta_id).then((data) => {
-      setClientes(data)
-    })
+    if (user) getClientes(user.ruta_id).then(setClientes)
   }, [user])
 
-  // 🎯 FILTRO
-  const clientesFiltrados = clientes.filter(c =>
-    c.cliente.toLowerCase().includes(filtro.toLowerCase())
-  )
+  const clientesFiltrados = clientes.filter(c => {
+    const coincide = c.cliente.toLowerCase().includes(filtro.toLowerCase())
+    const visitado = visitados.includes(c.id_cliente)
+    return verCompletados ? (coincide && visitado) : (coincide && !visitado)
+  })
 
-  // 📍 DIBUJAR CLIENTES EN MAPA
-  useEffect(() => {
-    if (!mapRef.current) return
+  // 📍 DIBUJAR MARCADORES
+ // --- Busca la parte de DIBUJAR MARCADORES y reemplázala por esta ---
+useEffect(() => {
+  if (!mapRef.current || !vistaMapa) return
+  clientesMarkersRef.current.forEach(m => m.remove())
+  
+  clientesMarkersRef.current = clientesFiltrados.map(c => {
+    const marker = L.marker([c.lat, c.lon]).addTo(mapRef.current)
+    
+    // FIX: Añadimos autoPan: false para que el mapa no salte al tocar
+    marker.bindPopup(`
+      <div style="width:190px; font-family:sans-serif;">
+        <b style="font-size:14px; color:#1e293b;">${c.cliente}</b>
+        ${!verCompletados ? `
+          <textarea id="pop-note-${c.id_cliente}" 
+            placeholder="Escribe un comentario..." 
+            style="width:100%; margin-top:8px; border-radius:8px; border:1px solid #ddd; 
+            padding:10px; font-size:16px; box-sizing:border-box; outline:none; height:60px;"></textarea>
+          <button id="btn-${c.id_cliente}" 
+            style="margin-top:10px; width:100%; background:#2563eb; color:white; 
+            border:none; padding:12px; border-radius:10px; font-weight:bold; font-size:14px;">
+            Guardar Visita 📦
+          </button>` : `<p style="color:green; font-weight:bold; margin-top:10px; font-size:14px;">✅ Visita completada</p>`}
+      </div>
+    `, { autoPan: false }) // 👈 IMPORTANTE: Evita que el mapa se desplace solo
 
-    // limpiar marcadores anteriores
-    clientesMarkersRef.current.forEach(m => m.remove())
-    clientesMarkersRef.current = []
-
-    clientesFiltrados.forEach((c) => {
-      const marker = L.marker([c.lat, c.lon]).addTo(mapRef.current)
-
-      marker.bindPopup(`
-        <b>${c.cliente}</b><br/>
-        <button id="btn-${c.id_cliente}">
-          Puntear
-        </button>
-      `)
-
+    if (!verCompletados) {
       marker.on("popupopen", () => {
-        const btn = document.getElementById(`btn-${c.id_cliente}`)
-        if (btn) {
-          btn.onclick = () => visitar(c)
+        document.getElementById(`btn-${c.id_cliente}`).onclick = () => {
+          const nota = document.getElementById(`pop-note-${c.id_cliente}`).value
+          visitar(c, nota)
         }
       })
+    }
+    return marker
+  })
+}, [clientesFiltrados, vistaMapa, verCompletados])
 
-      clientesMarkersRef.current.push(marker)
-    })
-  }, [clientesFiltrados])
+  // 🚀 LÓGICA DE PUNTEO CON LÍMITE (50 METROS)
+  async function visitar(cliente, comentario = "") {
+    if (!miUbicacion) return alert("Esperando señal GPS... 📍")
+    
+    // 📏 CALCULAR DISTANCIA (Nativo de Leaflet)
+    const distanciaMetros = L.latLng(miUbicacion).distanceTo([cliente.lat, cliente.lon])
 
-  // 📏 DISTANCIA
-  function distancia(lat1, lon1, lat2, lon2) {
-    const R = 6371e3
-    const φ1 = lat1 * Math.PI / 180
-    const φ2 = lat2 * Math.PI / 180
-    const Δφ = (lat2 - lat1) * Math.PI / 180
-    const Δλ = (lon2 - lon1) * Math.PI / 180
-
-    const a =
-      Math.sin(Δφ / 2) ** 2 +
-      Math.cos(φ1) * Math.cos(φ2) *
-      Math.sin(Δλ / 2) ** 2
-
-    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  }
-
-  // 🚀 PUNTEAR (FIX REAL)
-  async function visitar(cliente) {
-    if (!miUbicacion) {
-      alert("Esperando ubicación 📍")
+    if (distanciaMetros > 10000) {
+      alert(`⚠️ Estás muy lejos del cliente (${Math.round(distanciaMetros)} metros). Debes estar a menos de 50 metros.`)
       return
     }
 
-    const dist = distancia(
-      miUbicacion[0],
-      miUbicacion[1],
-      cliente.lat,
-      cliente.lon
-    )
-
-    if (dist > 50) {
-      alert("Muy lejos del cliente ❌")
-      return
+    const data = { 
+      cliente_id: Number(cliente.id_cliente), 
+      lat: miUbicacion[0], 
+      lon: miUbicacion[1], 
+      comentario 
     }
 
-    const data = {
-      cliente_id: cliente.id_cliente,
-      lat: miUbicacion[0],
-      lon: miUbicacion[1]
-    }
-
-    try {
-      if (!navigator.onLine) {
-        await guardarOffline(data)
-        alert("Guardado offline 📦")
-        return
-      }
-
-      await enviarPunteo(data)
-      alert("Punteo OK ✅")
-    } catch {
-      await guardarOffline(data)
-      alert("Error → offline ⚠️")
-    }
+    await guardarOffline(data)
+    setVisitados(prev => [...prev, cliente.id_cliente])
+    alert("Guardado en memoria del celular 📦")
   }
 
-  // 🔄 SINCRONIZAR
   async function sincronizar() {
     const pendientes = await obtenerOffline()
-
-    for (let p of pendientes) {
-      await enviarPunteo(p)
-    }
-
+    if (pendientes.length === 0) return alert("No hay datos nuevos para subir")
+    for (let p of pendientes) { await enviarPunteo(p) }
     await limpiarOffline()
-    alert("Sincronizado 🚀")
+    alert("¡Sincronización Exitosa! 🚀")
   }
 
   return (
-    <div style={{ height: "100vh", width: "100%" }}>
-
-      {/* HEADER */}
+    <div style={{ height: "100dvh", width: "100%", position: "relative", background: "#f8fafc", overflow: "hidden" }}>
+      
+      {/* HEADER TÁCTIL */}
       <div style={{
-        position: "absolute",
-        top: 10,
-        left: 10,
-        right: 10,
-        zIndex: 1000,
-        background: "white",
-        padding: 10,
-        borderRadius: 10
+        position: "absolute", top: 10, left: 10, right: 10, zIndex: 1000,
+        background: "rgba(255,255,255,0.95)", backdropFilter: "blur(10px)",
+        padding: "12px", borderRadius: "22px", boxShadow: "0 8px 25px rgba(0,0,0,0.12)"
       }}>
-        <input
-          type="text"
-          placeholder="Buscar cliente..."
-          value={filtro}
-          onChange={(e) => setFiltro(e.target.value)}
-        />
-
-        <button onClick={() => setVistaMapa(!vistaMapa)}>
-          {vistaMapa ? "Lista" : "Mapa"}
-        </button>
-
-        <button onClick={sincronizar}>
-          Sync
-        </button>
+        <input type="text" placeholder="Buscar cliente..." value={filtro} onChange={(e) => setFiltro(e.target.value)} 
+          style={{ width: "100%", border: "none", background: "transparent", outline: "none", fontSize: "16px", marginBottom: "12px", padding: "4px" }} />
+        
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}>
+          <div style={{ display: "flex", gap: "4px", background: "#f1f5f9", padding: "3px", borderRadius: "10px" }}>
+            <button onClick={() => setVerCompletados(false)} style={{ border: "none", background: !verCompletados ? "white" : "transparent", padding: "6px 12px", borderRadius: "8px", fontSize: "11px", fontWeight: "800", color: !verCompletados ? "#2563eb" : "#64748b", boxShadow: !verCompletados ? "0 2px 5px rgba(0,0,0,0.05)" : "none" }}>Pendientes</button>
+            <button onClick={() => setVerCompletados(true)} style={{ border: "none", background: verCompletados ? "white" : "transparent", padding: "6px 12px", borderRadius: "8px", fontSize: "11px", fontWeight: "800", color: verCompletados ? "#2563eb" : "#64748b", boxShadow: verCompletados ? "0 2px 5px rgba(0,0,0,0.05)" : "none" }}>Historial ({visitados.length})</button>
+          </div>
+          <div style={{ display: "flex", gap: "6px" }}>
+            <button onClick={() => { setVistaMapa(!vistaMapa); if(!vistaMapa) setTimeout(()=>mapRef.current.invalidateSize(), 200) }} style={{ background: "#2563eb", color: "white", border: "none", padding: "8px 12px", borderRadius: "10px", fontSize: "11px", fontWeight: "bold" }}>{vistaMapa ? "LISTA" : "MAPA"}</button>
+            <button onClick={sincronizar} style={{ background: "#10b981", color: "white", border: "none", padding: "8px 12px", borderRadius: "10px", fontSize: "11px", fontWeight: "bold" }}>SUBIR ⬆️</button>
+          </div>
+        </div>
       </div>
 
-      {/* MAPA */}
-      {vistaMapa && (
-        <div id="map" style={{ height: "100%", width: "100%" }} />
-      )}
+      <div id="map" style={{ height: "100%", width: "100%", display: vistaMapa ? "block" : "none" }} />
 
-      {/* LISTA */}
       {!vistaMapa && (
-        <div style={{ paddingTop: 80 }}>
+        <div style={{ padding: "120px 15px 30px", height: "100%", overflowY: "auto", boxSizing: "border-box" }}>
           {clientesFiltrados.map(c => (
-            <div key={c.id_cliente}>
-              {c.cliente}
-              <button onClick={() => visitar(c)}>Puntear</button>
+            <div key={c.id_cliente} style={{ background: "white", padding: "18px", borderRadius: "22px", marginBottom: "12px", boxShadow: "0 4px 6px rgba(0,0,0,0.03)", border: verCompletados ? "1px solid #dcfce7" : "1px solid #f1f5f9" }}>
+              <div style={{ fontWeight: "800", color: "#1e293b", marginBottom: "12px" }}>{c.cliente}</div>
+              {!verCompletados && (
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input id={`list-c-${c.id_cliente}`} placeholder="Nota..." style={{ flex: 1, padding: "12px", borderRadius: "12px", border: "1px solid #e2e8f0", outline: "none", fontSize: "14px" }} />
+                  <button onClick={() => visitar(c, document.getElementById(`list-c-${c.id_cliente}`).value)} style={{ background: "#2563eb", color: "white", border: "none", padding: "0 18px", borderRadius: "12px", fontWeight: "bold" }}>OK</button>
+                </div>
+              )}
             </div>
           ))}
+          <button onClick={() => { if(confirm("¿Restablecer ruta?")) { setVisitados([]); localStorage.removeItem("clientes_visitados"); }}} style={{ width: "100%", padding: "12px", background: "none", color: "#ef4444", border: "1px solid #ef4444", borderRadius: "12px", marginTop: "20px", fontSize: "11px", fontWeight: "bold" }}>BORRAR HISTORIAL LOCAL 🗑️</button>
         </div>
+      )}
+
+      {/* BOTÓN FLOTANTE GPS */}
+      {vistaMapa && miUbicacion && (
+        <button onClick={() => mapRef.current.flyTo(miUbicacion, 17)} style={{ position: "absolute", bottom: 25, right: 20, zIndex: 1000, background: "white", border: "none", width: "54px", height: "54px", borderRadius: "27px", boxShadow: "0 5px 15px rgba(0,0,0,0.2)", fontSize: "22px", display: "flex", alignItems: "center", justifyContent: "center" }}>🎯</button>
       )}
     </div>
   )
