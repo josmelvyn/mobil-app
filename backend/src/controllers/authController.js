@@ -1,3 +1,4 @@
+const bcrypt = require("bcrypt")
 const db = require("../config/database")
 
 const login = async (req, res) => {
