@@ -6,18 +6,54 @@ export default function Login({ setUser }) {
   const [password, setPassword] = useState("")
   const [cargando, setCargando] = useState(false)
 
-  async function handleLogin() {
-    setCargando(true)
-    const res = await login(usuario, password)
-    console.log(res) 
+ async function handleLogin() {
+  const inputUser = usuario.trim().toLowerCase();
+  const inputPass = password;
 
-    if (res.ok) {
-      setUser(res.usuario)
-    } else {
-      alert("Credenciales incorrectas ❌")
+  // 1. INTENTO CON INTERNET
+  if (navigator.onLine) {
+    try {
+      const res = await login(usuario, password);
+      if (res && res.ok) {
+        // Guardamos exactamente lo que funcionó en el servidor
+        localStorage.setItem("off_user", inputUser);
+        localStorage.setItem("off_pass", inputPass);
+        localStorage.setItem("off_data", JSON.stringify(res.usuario));
+        
+        console.log("✅ Guardado para offline:", inputUser);
+        setUser(res.usuario);
+        return;
+      }
+    } catch (e) {
+      console.log("🌐 Servidor no alcanzado, probando Offline...");
     }
-    setCargando(false)
   }
+
+  // 2. MODO OFFLINE
+  const savedUser = localStorage.getItem("off_user");
+  const savedPass = localStorage.getItem("off_pass");
+  const savedData = localStorage.getItem("off_data");
+
+  if (savedUser && savedPass) {
+    // COMPARACIÓN LOG: Mira esto en la consola si falla
+    console.log("Comparando:", { 
+      escribiste: inputUser, guardado: savedUser,
+      passOK: inputPass === savedPass 
+    });
+
+    if (inputUser === savedUser && inputPass === savedPass) {
+      alert("Acceso Offline OK 📦");
+      setUser(JSON.parse(savedData));
+    } else {
+      alert("Usuario o contraseña incorrectos (Modo Offline) ❌");
+    }
+  } else {
+    alert("❌ Error: No hay sesión guardada en este equipo.");
+  }
+
+
+
+}
 
   return (
     <div style={{

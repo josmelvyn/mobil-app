@@ -10,10 +10,21 @@ export async function login(usuario, password) {
   return await res.json()
 }
 
-export async function getClientes(ruta_id) {
-  const res = await fetch(`${API}/clientes?ruta_id=${ruta_id}`)
-  return await res.json()
-}
+export const getClientes = async (ruta_id) => {
+  try {
+    const response = await fetch(`/api/clientes?ruta_id=${ruta_id}`);
+    if (!response.ok) throw new Error("Error en red");
+    const data = await response.json();
+    
+    // Guardamos una copia aquí también por si acaso
+    localStorage.setItem("respaldo_clientes", JSON.stringify(data));
+    return data;
+  } catch (error) {
+    console.error("Error cargando clientes de API, buscando en local...");
+    const local = localStorage.getItem("respaldo_clientes");
+    return local ? JSON.parse(local) : []; // Si no hay internet, devuelve lo guardado
+  }
+};
 
 export async function enviarPunteo(data) {
   await fetch(`${API}/punteo`, {

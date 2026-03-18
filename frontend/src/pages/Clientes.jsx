@@ -65,8 +65,31 @@ export default function Clientes({ user }) {
 
   // 👥 CARGAR CLIENTES
   useEffect(() => {
-    if (user) getClientes(user.ruta_id).then(setClientes)
-  }, [user])
+  async function cargarDatos() {
+    if (!user) return;
+
+    try {
+      // 1. Intentar traer de la API
+      const datos = await getClientes(user.ruta_id);
+      
+      if (datos && datos.length > 0) {
+        setClientes(datos);
+        // 2. Guardar una copia fresca en el celular
+        localStorage.setItem("respaldo_clientes", JSON.stringify(datos));
+      }
+    } catch (error) {
+      console.log("Offline: Cargando clientes desde memoria interna");
+      
+      // 3. Si falla la API (offline), cargar del localStorage
+      const respaldo = localStorage.getItem("respaldo_clientes");
+      if (respaldo) {
+        setClientes(JSON.parse(respaldo));
+      }
+    }
+  }
+
+  cargarDatos();
+}, [user]);
 
   const clientesFiltrados = clientes.filter(c => {
     const coincide = c.cliente.toLowerCase().includes(filtro.toLowerCase())
@@ -136,13 +159,36 @@ useEffect(() => {
     alert("Guardado en memoria del celular 📦")
   }
 
-  async function sincronizar() {
-    const pendientes = await obtenerOffline()
-    if (pendientes.length === 0) return alert("No hay datos nuevos para subir")
-    for (let p of pendientes) { await enviarPunteo(p) }
+async function sincronizar() {
+  const pendientes = await obtenerOffline()
+  if (pendientes.length === 0) return alert("No hay datos nuevos para subir 🏁")
+
+  // 1. Validar conexión rápida al Proxy de la empresa
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 seg de espera
+
+    // Intentamos tocar el proxy para ver si el servidor .52 responde
+    const check = await fetch("/api/clientes?ruta_id=1", { 
+      method: 'GET', 
+      signal: controller.signal 
+    });
+    
+    clearTimeout(timeoutId);
+    if (!check.ok) throw new Error();
+
+    // 2. Si hay conexión, procedemos con TU LÓGICA QUE YA FUNCIONA
+    for (let p of pendientes) { 
+      await enviarPunteo(p) 
+    }
+
     await limpiarOffline()
     alert("¡Sincronización Exitosa! 🚀")
+
+  } catch (err) {
+    alert("❌ Error: No se puede conectar al servidor. Conéctate al Wi-Fi de la empresa para subir los datos.")
   }
+}
 
   return (
     <div style={{ height: "100dvh", width: "100%", position: "relative", background: "#f8fafc", overflow: "hidden" }}>
