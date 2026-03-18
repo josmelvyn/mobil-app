@@ -32,8 +32,8 @@ const registrar = async (req, res) => {
     const existe = await db.query(`
       SELECT * FROM punteos 
       WHERE cliente_id=${cliente_id}
-      AND fecha=#${fecha}#
-    `)
+      AND fecha=#${fecha}#  `
+  )
 
     if (existe.length > 0) {
       return res.json({ ok: false, mensaje: "Ya visitado hoy" })

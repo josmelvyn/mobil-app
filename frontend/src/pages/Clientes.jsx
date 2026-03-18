@@ -1,94 +1,166 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import L from "leaflet"
+import "leaflet/dist/leaflet.css"
+
 import { getClientes, enviarPunteo } from "../api/api"
 import { guardarOffline, obtenerOffline, limpiarOffline } from "../db/indexedDB"
 
-export default function Clientes({ user }) {
-  const [clientes, setClientes] = useState([])
 
+export default function Clientes({ user }) {
+  const mapRef = useRef(null)
+  const userMarkerRef = useRef(null)
+  const clientesMarkersRef = useRef([])
+
+  const [clientes, setClientes] = useState([])
+  const [filtro, setFiltro] = useState("")
+  const [vistaMapa, setVistaMapa] = useState(true)
+  const [miUbicacion, setMiUbicacion] = useState(null)
+
+  // 🚀 INICIAR MAPA
+  useEffect(() => {
+    if (mapRef.current) return
+
+    const map = L.map("map").setView([19.4517, -70.6970], 15)
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png")
+      .addTo(map)
+
+    mapRef.current = map
+  }, [])
+
+  // 📍 UBICACIÓN EN TIEMPO REAL (FIX REAL)
+  useEffect(() => {
+    if (!navigator.geolocation) return
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const lat = pos.coords.latitude
+        const lon = pos.coords.longitude
+
+        setMiUbicacion([lat, lon])
+
+        if (!mapRef.current) return
+
+        if (!userMarkerRef.current) {
+          userMarkerRef.current = L.marker([lat, lon])
+            .addTo(mapRef.current)
+            .bindPopup("Estás aquí 📍")
+        } else {
+          userMarkerRef.current.setLatLng([lat, lon])
+        }
+
+        mapRef.current.setView([lat, lon])
+      },
+      (err) => {
+        console.log("Error ubicación:", err)
+      },
+      { enableHighAccuracy: true }
+    )
+
+    return () => navigator.geolocation.clearWatch(watchId)
+  }, [])
+
+  // 👥 CARGAR CLIENTES
   useEffect(() => {
     if (!user) return
 
-    cargarClientes()
+    getClientes(user.ruta_id).then((data) => {
+      setClientes(data)
+    })
   }, [user])
 
+  // 🎯 FILTRO
+  const clientesFiltrados = clientes.filter(c =>
+    c.cliente.toLowerCase().includes(filtro.toLowerCase())
+  )
 
-  async function cargarClientes() {
-    const data = await getClientes(user.ruta_id) // 👈 CLAVE
-    setClientes(data)
-    
-  }
- 
+  // 📍 DIBUJAR CLIENTES EN MAPA
+  useEffect(() => {
+    if (!mapRef.current) return
 
+    // limpiar marcadores anteriores
+    clientesMarkersRef.current.forEach(m => m.remove())
+    clientesMarkersRef.current = []
 
-  // 📍 Obtener GPS
-  function getUbicacion() {
-    return new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => resolve(pos.coords),
-        reject
-      )
+    clientesFiltrados.forEach((c) => {
+      const marker = L.marker([c.lat, c.lon]).addTo(mapRef.current)
+
+      marker.bindPopup(`
+        <b>${c.cliente}</b><br/>
+        <button id="btn-${c.id_cliente}">
+          Puntear
+        </button>
+      `)
+
+      marker.on("popupopen", () => {
+        const btn = document.getElementById(`btn-${c.id_cliente}`)
+        if (btn) {
+          btn.onclick = () => visitar(c)
+        }
+      })
+
+      clientesMarkersRef.current.push(marker)
     })
-  }
+  }, [clientesFiltrados])
 
-  // 📏 Distancia en metros
+  // 📏 DISTANCIA
   function distancia(lat1, lon1, lat2, lon2) {
     const R = 6371e3
-    const φ1 = lat1 * Math.PI/180
-    const φ2 = lat2 * Math.PI/180
-    const Δφ = (lat2-lat1) * Math.PI/180
-    const Δλ = (lon2-lon1) * Math.PI/180
+    const φ1 = lat1 * Math.PI / 180
+    const φ2 = lat2 * Math.PI / 180
+    const Δφ = (lat2 - lat1) * Math.PI / 180
+    const Δλ = (lon2 - lon1) * Math.PI / 180
 
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+    const a =
+      Math.sin(Δφ / 2) ** 2 +
       Math.cos(φ1) * Math.cos(φ2) *
-      Math.sin(Δλ/2) * Math.sin(Δλ/2)
+      Math.sin(Δλ / 2) ** 2
 
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-    return R * c
+    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   }
 
+  // 🚀 PUNTEAR (FIX REAL)
   async function visitar(cliente) {
+    if (!miUbicacion) {
+      alert("Esperando ubicación 📍")
+      return
+    }
+
+    const dist = distancia(
+      miUbicacion[0],
+      miUbicacion[1],
+      cliente.lat,
+      cliente.lon
+    )
+
+    if (dist > 50) {
+      alert("Muy lejos del cliente ❌")
+      return
+    }
+
+    const data = {
+      cliente_id: cliente.id_cliente,
+      lat: miUbicacion[0],
+      lon: miUbicacion[1]
+    }
+
     try {
-      const coords = await getUbicacion()
-
-      const dist = distancia(
-        coords.latitude,
-        coords.longitude,
-        cliente.lat,
-        cliente.lon
-      )
-
-      // 📍 VALIDACIÓN GPS (30m)
-      if (dist > 30) {
-        alert("Estás muy lejos del cliente")
-        return
-      }
-
-      const data = {
-        cliente_id: cliente.id,
-        lat: coords.latitude,
-        lon: coords.longitude,
-        comentario: ""
-      }
-
-      // 🔄 OFFLINE
       if (!navigator.onLine) {
         await guardarOffline(data)
-        alert("Guardado offline")
+        alert("Guardado offline 📦")
         return
       }
 
       await enviarPunteo(data)
-      alert("Enviado")
-
-    } catch (err) {
-      console.log(err)
+      alert("Punteo OK ✅")
+    } catch {
+      await guardarOffline(data)
+      alert("Error → offline ⚠️")
     }
   }
 
   // 🔄 SINCRONIZAR
   async function sincronizar() {
-    if (!navigator.onLine) return
-
     const pendientes = await obtenerOffline()
 
     for (let p of pendientes) {
@@ -96,20 +168,55 @@ export default function Clientes({ user }) {
     }
 
     await limpiarOffline()
+    alert("Sincronizado 🚀")
   }
 
   return (
-    <div>
-      <h2>Clientes - Ruta {user.ruta_id}</h2>
-      {clientes.map(c => (
-        <div key={c.id_cliente}>
-          <h4>{c.cliente}</h4>
-          <button onClick={() => visitar(c)}>
-            Puntear
-          </button>
+    <div style={{ height: "100vh", width: "100%" }}>
+
+      {/* HEADER */}
+      <div style={{
+        position: "absolute",
+        top: 10,
+        left: 10,
+        right: 10,
+        zIndex: 1000,
+        background: "white",
+        padding: 10,
+        borderRadius: 10
+      }}>
+        <input
+          type="text"
+          placeholder="Buscar cliente..."
+          value={filtro}
+          onChange={(e) => setFiltro(e.target.value)}
+        />
+
+        <button onClick={() => setVistaMapa(!vistaMapa)}>
+          {vistaMapa ? "Lista" : "Mapa"}
+        </button>
+
+        <button onClick={sincronizar}>
+          Sync
+        </button>
+      </div>
+
+      {/* MAPA */}
+      {vistaMapa && (
+        <div id="map" style={{ height: "100%", width: "100%" }} />
+      )}
+
+      {/* LISTA */}
+      {!vistaMapa && (
+        <div style={{ paddingTop: 80 }}>
+          {clientesFiltrados.map(c => (
+            <div key={c.id_cliente}>
+              {c.cliente}
+              <button onClick={() => visitar(c)}>Puntear</button>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   )
-  
 }
