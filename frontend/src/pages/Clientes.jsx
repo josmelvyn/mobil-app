@@ -22,7 +22,12 @@ const crearIcono = (color) => L.divIcon({
 
 const iconoAzul = crearIcono("#2563eb");
 const iconoVerde = crearIcono("#10b981");
-
+const obtenerDiaNumero = () => {
+  const fecha = new Date();
+  const diaJS = fecha.getDay(); // 0=Dom, 1=Lun, 2=Mar, 3=Mie, 4=Jue, 5=Vie, 6=Sab
+  // Ajuste para que Lunes sea 1 y Domingo sea 7:
+  return diaJS === 0 ? 7 : diaJS;
+};
 export default function Clientes({ user }) {
   const mapRef = useRef(null)
   const userMarkerRef = useRef(null)
@@ -106,11 +111,26 @@ const abrirNavegacion = (lat, lon) => {
     cargarDatos();
   }, [user]);
 
-  const clientesFiltrados = clientes.filter(c => {
-    const coincide = c.cliente.toLowerCase().includes(filtro.toLowerCase())
-    const visitado = visitados.includes(c.id_cliente)
-    return verCompletados ? (coincide && visitado) : (coincide && !visitado)
-  })
+ 
+
+const diaHoy = obtenerDiaNumero().toString(); // El número de hoy en texto (ej: "4")
+
+const clientesFiltrados = clientes.filter(c => {
+  const coincideNombre = c.cliente.toLowerCase().includes(filtro.toLowerCase());
+  const visitado = visitados.includes(c.id_cliente);
+  
+  // 🔍 Lógica de frecuencia:
+  // Si el campo está vacío, lo muestra siempre. 
+  // Si tiene números (ej: "1,4"), verifica si el de hoy está ahí.
+  const frecuenciaTexto = c.frecuencia ? c.frecuencia.toString() : "";
+  const esDeHoy = frecuenciaTexto === "" || frecuenciaTexto.includes(diaHoy);
+
+  if (verCompletados) {
+    return coincideNombre && visitado && esDeHoy;
+  } else {
+    return coincideNombre && !visitado && esDeHoy;
+  }
+});
 
   useEffect(() => {
     if (!mapRef.current || !vistaMapa) return
@@ -212,7 +232,34 @@ const abrirNavegacion = (lat, lon) => {
       alert("❌ Error: No se puede conectar al servidor.")
     }
   }
+// 🗑️ FUNCIÓN PARA BORRAR TODO DE RAÍZ
+const borrarHistorialCompleto = async () => {
+  const confirmar = window.confirm("¿Estás seguro de borrar todos los datos locales?");
+  if (!confirmar) return;
 
+  try {
+    // 1. Borra la lista de visitados del usuario actual
+    const llaveUsuario = `visitados_user_${user?.id || 'anonimo'}`;
+    localStorage.removeItem(llaveUsuario);
+    
+    // 2. Borra el respaldo de la lista de clientes
+    localStorage.removeItem("respaldo_clientes");
+
+    // 3. Borra lo que está pendiente de sincronizar (IndexedDB)
+    await limpiarOffline();
+
+    // 4. Limpia la pantalla de tu App al instante
+    setVisitados([]);
+    setClientes([]);
+
+    alert("¡Datos borrados con éxito! 🧹");
+    
+    // 5. Opcional: Recarga la página para asegurar que todo esté limpio
+    window.location.reload();
+  } catch (error) {
+    alert("Error al borrar: " + error.message);
+  }
+};
 
   return (
     <div style={{ height: "100dvh", width: "100%", position: "relative", background: "#f8fafc", overflow: "hidden" }}>
@@ -253,7 +300,36 @@ const abrirNavegacion = (lat, lon) => {
               )}
             </div>
           ))}
-          <button onClick={() => { if(confirm("¿Restablecer ruta?")) { setVisitados([]); localStorage.removeItem("clientes_visitados"); }}} style={{ width: "100%", padding: "12px", background: "none", color: "#ef4444", border: "1px solid #ef4444", borderRadius: "12px", marginTop: "20px", fontSize: "11px", fontWeight: "bold" }}>BORRAR HISTORIAL LOCAL 🗑️</button>
+          <button 
+  onClick={() => { 
+    if(confirm("¿Restablecer ruta?")) { 
+      // 1. Identificamos la llave exacta que usa tu app
+      const llaveUsuario = `visitados_user_${user?.id || 'anonimo'}`;
+      
+      // 2. Borramos esa llave específica y el respaldo de clientes
+      localStorage.removeItem(llaveUsuario);
+      localStorage.removeItem("respaldo_clientes"); // Importante borrar este también
+      
+      // 3. Limpiamos el estado visual
+      setVisitados([]); 
+      
+      alert("Ruta restablecida correctamente 🧹");
+    } 
+  }} 
+  style={{ 
+    width: "100%", 
+    padding: "12px", 
+    background: "none", 
+    color: "#ef4444", 
+    border: "1px solid #ef4444", 
+    borderRadius: "12px", 
+    marginTop: "20px", 
+    fontSize: "11px", 
+    fontWeight: "bold" 
+  }}
+>
+  BORRAR HISTORIAL LOCAL 🗑️
+</button>
         </div>
       )}
 

@@ -10,3 +10,6 @@ para actualizar la produccion
 cd frontend
 cd dist
 npx vercel --prod
+
+se usa ngrok para la api 
+ngrok http 3000 --host-header="localhost:3000"

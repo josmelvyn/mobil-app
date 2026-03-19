@@ -11,7 +11,7 @@ const listar = async (req, res) => {
     // 🚩 OPCIÓN B (Para campos de texto): Usa '${ruta_id}'
     // Probaremos con la sintaxis más segura para ODBC:
     const query = `
-  SELECT id_cliente, cliente, lat, lon, ruta_id
+  SELECT id_cliente, cliente, lat, lon, ruta_id, frecuencia
   FROM CLIENTES_wialon
   WHERE ruta_id = ${ruta_id}
 `;
