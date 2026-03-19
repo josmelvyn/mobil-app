@@ -5,6 +5,24 @@ import "leaflet/dist/leaflet.css"
 import { obtenerClientes as getClientes, enviarPunteo } from "../api/api";
 import { guardarOffline, obtenerOffline, limpiarOffline } from "../db/indexedDB"
 
+const crearIcono = (color) => L.divIcon({
+  className: "custom-marker",
+  html: `<div style="
+    background-color: ${color};
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 0 5px rgba(0,0,0,0.4);
+  "></div>`,
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
+  popupAnchor: [0, -12]
+});
+
+const iconoAzul = crearIcono("#2563eb");
+const iconoVerde = crearIcono("#10b981");
+
 export default function Clientes({ user }) {
   const mapRef = useRef(null)
   const userMarkerRef = useRef(null)
@@ -17,23 +35,26 @@ export default function Clientes({ user }) {
   const [haCentrado, setHaCentrado] = useState(false)
   const [verCompletados, setVerCompletados] = useState(false)
 
-  // 💾 PERSISTENCIA: Cargar desde memoria del celular
   const [visitados, setVisitados] = useState(() => {
-  // Creamos una llave única: ej. "visitados_usuario_5"
-  const llaveUsuario = `visitados_user_${user?.id || 'anonimo'}`;
-  const saved = localStorage.getItem(llaveUsuario);
-  return saved ? JSON.parse(saved) : [];
-});
+    const llaveUsuario = `visitados_user_${user?.id || 'anonimo'}`;
+    const saved = localStorage.getItem(llaveUsuario);
+    return saved ? JSON.parse(saved) : [];
+  });
 
-// Guardar los datos cuando cambien, usando la misma llave única
-useEffect(() => {
-  if (user) {
-    const llaveUsuario = `visitados_user_${user.id}`;
-    localStorage.setItem(llaveUsuario, JSON.stringify(visitados));
-  }
-}, [visitados, user]);
+  useEffect(() => {
+    if (user) {
+      const llaveUsuario = `visitados_user_${user.id}`;
+      localStorage.setItem(llaveUsuario, JSON.stringify(visitados));
+    }
+  }, [visitados, user]);
 
-  // 🚀 INICIAR MAPA
+  // 🚀 FUNCIÓN GPS CORREGIDA
+const abrirNavegacion = (lat, lon) => {
+  
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`;
+  window.open(url, '_blank');
+};
+
   useEffect(() => {
     if (mapRef.current) return
     const map = L.map("map", { zoomControl: false }).setView([19.4517, -70.6970], 14)
@@ -41,7 +62,6 @@ useEffect(() => {
     mapRef.current = map
   }, [])
 
-  // 📍 GPS + AUTO-CENTRADO AL ABRIR
   useEffect(() => {
     if (!navigator.geolocation) return
     const watchId = navigator.geolocation.watchPosition(
@@ -69,33 +89,22 @@ useEffect(() => {
     return () => navigator.geolocation.clearWatch(watchId)
   }, [haCentrado])
 
-  // 👥 CARGAR CLIENTES
   useEffect(() => {
-  async function cargarDatos() {
-    if (!user) return;
-
-    try {
-      // 1. Intentar traer de la API
-      const datos = await getClientes(user.ruta_id);
-      
-      if (datos && datos.length > 0) {
-        setClientes(datos);
-        // 2. Guardar una copia fresca en el celular
-        localStorage.setItem("respaldo_clientes", JSON.stringify(datos));
-      }
-    } catch (error) {
-      console.log("Offline: Cargando clientes desde memoria interna");
-      
-      // 3. Si falla la API (offline), cargar del localStorage
-      const respaldo = localStorage.getItem("respaldo_clientes");
-      if (respaldo) {
-        setClientes(JSON.parse(respaldo));
+    async function cargarDatos() {
+      if (!user) return;
+      try {
+        const datos = await getClientes(user.ruta_id);
+        if (datos && datos.length > 0) {
+          setClientes(datos);
+          localStorage.setItem("respaldo_clientes", JSON.stringify(datos));
+        }
+      } catch (error) {
+        const respaldo = localStorage.getItem("respaldo_clientes");
+        if (respaldo) setClientes(JSON.parse(respaldo));
       }
     }
-  }
-
-  cargarDatos();
-}, [user]);
+    cargarDatos();
+  }, [user]);
 
   const clientesFiltrados = clientes.filter(c => {
     const coincide = c.cliente.toLowerCase().includes(filtro.toLowerCase())
@@ -103,58 +112,74 @@ useEffect(() => {
     return verCompletados ? (coincide && visitado) : (coincide && !visitado)
   })
 
-  // 📍 DIBUJAR MARCADORES
- // --- Busca la parte de DIBUJAR MARCADORES y reemplázala por esta ---
-useEffect(() => {
-  if (!mapRef.current || !vistaMapa) return
-  clientesMarkersRef.current.forEach(m => m.remove())
-  
-  clientesMarkersRef.current = clientesFiltrados.map(c => {
-    const marker = L.marker([c.lat, c.lon]).addTo(mapRef.current)
+  useEffect(() => {
+    if (!mapRef.current || !vistaMapa) return
+    clientesMarkersRef.current.forEach(m => m.remove())
     
-    // FIX: Añadimos autoPan: false para que el mapa no salte al tocar
-    marker.bindPopup(`
-      <div style="width:190px; font-family:sans-serif;">
-        <b style="font-size:14px; color:#1e293b;">${c.cliente}</b>
-        ${!verCompletados ? `
-          <textarea id="pop-note-${c.id_cliente}" 
-            placeholder="Escribe un comentario..." 
-            style="width:100%; margin-top:8px; border-radius:8px; border:1px solid #ddd; 
-            padding:10px; font-size:16px; box-sizing:border-box; outline:none; height:60px;"></textarea>
-          <button id="btn-${c.id_cliente}" 
-            style="margin-top:10px; width:100%; background:#2563eb; color:white; 
-            border:none; padding:12px; border-radius:10px; font-weight:bold; font-size:14px;">
-            Guardar Visita 📦
-          </button>` : `<p style="color:green; font-weight:bold; margin-top:10px; font-size:14px;">✅ Visita completada</p>`}
-      </div>
-    `, { autoPan: false }) // 👈 IMPORTANTE: Evita que el mapa se desplace solo
+    clientesMarkersRef.current = clientesFiltrados.map(c => {
+      // 🚩 COLOR DINÁMICO: Verde si está completado, Azul si no
+      const marker = L.marker([c.lat, c.lon], { icon: verCompletados ? iconoVerde : iconoAzul }).addTo(mapRef.current)
+      
+      marker.bindPopup(`
+        <div style="width:190px; font-family:sans-serif;">
+          <b style="font-size:14px; color:#1e293b;">${c.cliente}</b>
+          
+          <!-- BOTÓN GPS -->
+          <button id="nav-${c.id_cliente}" 
+            style="margin-top:10px; width:100%; background:#1e293b; color:white; 
+            border:none; padding:10px; border-radius:10px; font-weight:bold; font-size:13px; cursor:pointer;">
+            🚗 Cómo llegar
+          </button>
 
-    if (!verCompletados) {
+          <hr style="margin:12px 0; border:0; border-top:1px solid #eee;">
+
+          ${!verCompletados ? `
+            <textarea id="pop-note-${c.id_cliente}" 
+              placeholder="Escribe un comentario..." 
+              style="width:100%; border-radius:8px; border:1px solid #ddd; 
+              padding:10px; font-size:16px; box-sizing:border-box; outline:none; height:60px;"></textarea>
+            <button id="btn-${c.id_cliente}" 
+              style="margin-top:10px; width:100%; background:#2563eb; color:white; 
+              border:none; padding:12px; border-radius:10px; font-weight:bold; font-size:14px;">
+              Guardar Visita 📦
+            </button>` : `<p style="color:green; font-weight:bold; margin-top:10px; font-size:14px;">✅ Visita completada</p>`}
+        </div>
+      `, { autoPan: false })
+
       marker.on("popupopen", () => {
-        document.getElementById(`btn-${c.id_cliente}`).onclick = () => {
-          const nota = document.getElementById(`pop-note-${c.id_cliente}`).value
-          visitar(c, nota)
+        // Evento GPS
+        const btnNav = document.getElementById(`nav-${c.id_cliente}`);
+          if (btnNav) {
+        // Usamos las propiedades del cliente 'c' directamente
+        btnNav.onclick = () => abrirNavegacion(c.lat, c.lon);
+}
+
+        // Evento Visita
+        if (!verCompletados) {
+          const btnSave = document.getElementById(`btn-${c.id_cliente}`);
+          if (btnSave) {
+            btnSave.onclick = () => {
+              const nota = document.getElementById(`pop-note-${c.id_cliente}`).value
+              visitar(c, nota)
+            }
+          }
         }
       })
-    }
-    return marker
-  })
-}, [clientesFiltrados, vistaMapa, verCompletados])
+      return marker
+    })
+  }, [clientesFiltrados, vistaMapa, verCompletados])
 
-  // 🚀 LÓGICA DE PUNTEO CON LÍMITE (50 METROS)
   async function visitar(cliente, comentario = "") {
     if (!miUbicacion) return alert("Esperando señal GPS... 📍")
     const llaveUser = `visitados_user_${user?.id_usuario || user?.id || 'anonimo'}`;
-const nuevosVisitados = [...visitados, cliente.id_cliente];
-setVisitados(nuevosVisitados);
-localStorage.setItem(llaveUser, JSON.stringify(nuevosVisitados));
-    // 📏 CALCULAR DISTANCIA (Nativo de Leaflet)
+    const nuevosVisitados = [...visitados, cliente.id_cliente];
+    setVisitados(nuevosVisitados);
+    localStorage.setItem(llaveUser, JSON.stringify(nuevosVisitados));
+    
     const distanciaMetros = L.latLng(miUbicacion).distanceTo([cliente.lat, cliente.lon])
-
     if (distanciaMetros > 10000000000) {
-      alert(`⚠️ Estás muy lejos del cliente (${Math.round(distanciaMetros)} metros). Debes estar a menos de 50 metros.`)
+      alert(`⚠️ Estás muy lejos del cliente (${Math.round(distanciaMetros)} metros).`)
       return
-      
     }
 
     const data = { 
@@ -165,40 +190,29 @@ localStorage.setItem(llaveUser, JSON.stringify(nuevosVisitados));
     }
 
     await guardarOffline(data)
-    setVisitados(prev => [...prev, cliente.id_cliente])
     alert("Guardado en memoria del celular 📦")
   }
 
-async function sincronizar() {
-  const pendientes = await obtenerOffline()
-  if (pendientes.length === 0) return alert("No hay datos nuevos para subir 🏁")
-
-  // 1. Validar conexión rápida al Proxy de la empresa
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 seg de espera
-
-    // Intentamos tocar el proxy para ver si el servidor .52 responde
- const check = await fetch("https://miyoko-unreleased-overfavorably.ngrok-free.dev", { 
-  method: 'GET', 
-  signal: controller.signal 
-});
-    
-    clearTimeout(timeoutId);
-    if (!check.ok) throw new Error();
-
-    // 2. Si hay conexión, procedemos con TU LÓGICA QUE YA FUNCIONA
-    for (let p of pendientes) { 
-      await enviarPunteo(p) 
+  async function sincronizar() {
+    const pendientes = await obtenerOffline()
+    if (pendientes.length === 0) return alert("No hay datos nuevos para subir 🏁")
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const check = await fetch("https://miyoko-unreleased-overfavorably.ngrok-free.dev", { 
+        method: 'GET', 
+        signal: controller.signal 
+      });
+      clearTimeout(timeoutId);
+      if (!check.ok) throw new Error();
+      for (let p of pendientes) { await enviarPunteo(p) }
+      await limpiarOffline()
+      alert("¡Sincronización Exitosa! 🚀")
+    } catch (err) {
+      alert("❌ Error: No se puede conectar al servidor.")
     }
-
-    await limpiarOffline()
-    alert("¡Sincronización Exitosa! 🚀")
-
-  } catch (err) {
-    alert("❌ Error: No se puede conectar al servidor. Conéctate al Wi-Fi de la empresa para subir los datos.")
   }
-}
+
 
   return (
     <div style={{ height: "100dvh", width: "100%", position: "relative", background: "#f8fafc", overflow: "hidden" }}>
