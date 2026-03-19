@@ -19,13 +19,19 @@ export default function Clientes({ user }) {
 
   // 💾 PERSISTENCIA: Cargar desde memoria del celular
   const [visitados, setVisitados] = useState(() => {
-    const saved = localStorage.getItem("clientes_visitados")
-    return saved ? JSON.parse(saved) : []
-  })
+  // Creamos una llave única: ej. "visitados_usuario_5"
+  const llaveUsuario = `visitados_user_${user?.id || 'anonimo'}`;
+  const saved = localStorage.getItem(llaveUsuario);
+  return saved ? JSON.parse(saved) : [];
+});
 
-  useEffect(() => {
-    localStorage.setItem("clientes_visitados", JSON.stringify(visitados))
-  }, [visitados])
+// Guardar los datos cuando cambien, usando la misma llave única
+useEffect(() => {
+  if (user) {
+    const llaveUsuario = `visitados_user_${user.id}`;
+    localStorage.setItem(llaveUsuario, JSON.stringify(visitados));
+  }
+}, [visitados, user]);
 
   // 🚀 INICIAR MAPA
   useEffect(() => {
@@ -138,13 +144,17 @@ useEffect(() => {
   // 🚀 LÓGICA DE PUNTEO CON LÍMITE (50 METROS)
   async function visitar(cliente, comentario = "") {
     if (!miUbicacion) return alert("Esperando señal GPS... 📍")
-    
+    const llaveUser = `visitados_user_${user?.id_usuario || user?.id || 'anonimo'}`;
+const nuevosVisitados = [...visitados, cliente.id_cliente];
+setVisitados(nuevosVisitados);
+localStorage.setItem(llaveUser, JSON.stringify(nuevosVisitados));
     // 📏 CALCULAR DISTANCIA (Nativo de Leaflet)
     const distanciaMetros = L.latLng(miUbicacion).distanceTo([cliente.lat, cliente.lon])
 
-    if (distanciaMetros > 10000) {
+    if (distanciaMetros > 10000000000) {
       alert(`⚠️ Estás muy lejos del cliente (${Math.round(distanciaMetros)} metros). Debes estar a menos de 50 metros.`)
       return
+      
     }
 
     const data = { 
@@ -169,10 +179,10 @@ async function sincronizar() {
     const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 seg de espera
 
     // Intentamos tocar el proxy para ver si el servidor .52 responde
-    const check = await fetch("/api/clientes?ruta_id=1", { 
-      method: 'GET', 
-      signal: controller.signal 
-    });
+ const check = await fetch("https://10.0.0.52:3000", { 
+  method: 'GET', 
+  signal: controller.signal 
+});
     
     clearTimeout(timeoutId);
     if (!check.ok) throw new Error();
