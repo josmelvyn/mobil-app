@@ -20,9 +20,14 @@ function App() {
       {/* CONTENIDO PRINCIPAL */}
       <main style={{ paddingBottom: "80px" }}>
         {vista === "dash" ? (
-          <Dashboard onVerMapa={() => setVista("mapa")} />
+          <Dashboard onVerMapa={() => setVista("mapa")} 
+          user={user}                       // 👈 Pasamos el usuario
+            setUser={setUser}
+          />
+          
         ) : (
           <Clientes user={user} />
+          
         )}
       </main>
 

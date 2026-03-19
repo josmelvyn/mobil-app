@@ -9,19 +9,18 @@ export default function Login({ setUser }) {
  async function handleLogin() {
   const inputUser = usuario.trim().toLowerCase();
   const inputPass = password;
+  setCargando(true); // Empieza a cargar
 
   // 1. INTENTO CON INTERNET
   if (navigator.onLine) {
     try {
       const res = await login(usuario, password);
       if (res && res.ok) {
-        // Guardamos exactamente lo que funcionó en el servidor
         localStorage.setItem("off_user", inputUser);
         localStorage.setItem("off_pass", inputPass);
         localStorage.setItem("off_data", JSON.stringify(res.usuario));
-        
-        console.log("✅ Guardado para offline:", inputUser);
         setUser(res.usuario);
+        setCargando(false);
         return;
       }
     } catch (e) {
@@ -29,10 +28,27 @@ export default function Login({ setUser }) {
     }
   }
 
-  // 2. MODO OFFLINE
+  // 2. MODO OFFLINE (Solo si el login online falló o no hay red)
   const savedUser = localStorage.getItem("off_user");
   const savedPass = localStorage.getItem("off_pass");
   const savedData = localStorage.getItem("off_data");
+
+  if (savedUser && savedPass) {
+    if (inputUser === savedUser && inputPass === savedPass) {
+      alert("Acceso Offline OK 📦");
+      setUser(JSON.parse(savedData));
+    } else {
+      alert("Usuario o contraseña incorrectos (Modo Offline) ❌");
+    }
+  } else {
+    // Este es el error que ves porque el almacenamiento está vacío
+    alert("❌ No hay datos previos. Conéctate a internet para el primer inicio de sesión.");
+  
+  setCargando(false);
+  }
+
+  
+  
 
   if (savedUser && savedPass) {
     // COMPARACIÓN LOG: Mira esto en la consola si falla

@@ -1,34 +1,49 @@
-export const API = "https://10.0.0.52:3000"; 
+export const API = "https://miyoko-unreleased-overfavorably.ngrok-free.dev"; 
 
+// 1. LOGIN
 export async function login(usuario, password) {
   const res = await fetch(`${API}/api/auth/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true" 
+    },
     body: JSON.stringify({ usuario, password })
   });
   return await res.json();
 }
 
-export const getClientes = async (ruta_id) => {
+// 2. OBTENER CLIENTES (Unificada y corregida con /api)
+export async function obtenerClientes(ruta_id) {
   try {
-    // 🚩 CAMBIO 2: Usar la constante API
-    const response = await fetch(`${API}/api/clientes?ruta_id=${ruta_id}`);
-    if (!response.ok) throw new Error("Error en red");
+    // 🚩 CORRECCIÓN: Se agrega /api/ para que coincida con el servidor
+    const response = await fetch(`${API}/api/clientes?ruta_id=${ruta_id}`, {
+      headers: { "ngrok-skip-browser-warning": "true" }
+    });
+    
+    if (!response.ok) throw new Error("Error en el servidor");
+    
     const data = await response.json();
     
+    // Guardamos respaldo para modo offline
     localStorage.setItem("respaldo_clientes", JSON.stringify(data));
     return data;
   } catch (error) {
+    console.error("Error en obtenerClientes:", error);
+    // Si falla la red, devolvemos lo que tengamos guardado
     const local = localStorage.getItem("respaldo_clientes");
     return local ? JSON.parse(local) : [];
   }
-};
+}
 
+// 3. ENVIAR PUNTEO
 export async function enviarPunteo(data) {
-  // 🚩 CAMBIO 3: Ruta limpia hacia el puerto 3000
   const res = await fetch(`${API}/api/punteo`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true"
+    },
     body: JSON.stringify(data)
   });
 

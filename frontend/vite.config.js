@@ -44,7 +44,7 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       "/api": {
-        target: "http://10.0.0.52:3000", // Tu servidor con Access
+        target: "https://10.0.0.52:3000", // Tu servidor con Access
         changeOrigin: true,
         secure: false,
         ws: true,

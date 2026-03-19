@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 
-import { getClientes, enviarPunteo } from "../api/api"
+import { obtenerClientes as getClientes, enviarPunteo } from "../api/api";
 import { guardarOffline, obtenerOffline, limpiarOffline } from "../db/indexedDB"
 
 export default function Clientes({ user }) {
@@ -179,7 +179,7 @@ async function sincronizar() {
     const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 seg de espera
 
     // Intentamos tocar el proxy para ver si el servidor .52 responde
- const check = await fetch("https://10.0.0.52:3000", { 
+ const check = await fetch("https://miyoko-unreleased-overfavorably.ngrok-free.dev", { 
   method: 'GET', 
   signal: controller.signal 
 });

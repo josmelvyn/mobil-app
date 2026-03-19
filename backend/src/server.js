@@ -32,9 +32,13 @@ try {
   app.get("/", (req, res) => {
   res.send("Servidor Activo 🚀");
 });
-  https.createServer(opciones, app).listen(3000, "0.0.0.0", () => {
-    console.log("🚀 Servidor Access SEGURO en https://10.0.0.52:3000");
-  });
+  const PORT = 3000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ Servidor listo para ngrok en http://localhost:${PORT}`);
+});
+// https.createServer(opciones, app).listen(3000, "0.0.0.0", () => {
+//     console.log("🚀 Servidor Access SEGURO en https://10.0.0.52:3000");
+//   });
 } catch (error) {
   console.error("❌ ERROR AL INICIAR HTTPS:");
   console.error("Asegúrate de que los archivos 'localhost.key' y 'localhost.crt' estén en la carpeta /certs");
