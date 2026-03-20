@@ -39,6 +39,7 @@ export default function Clientes({ user }) {
   const [miUbicacion, setMiUbicacion] = useState(null)
   const [haCentrado, setHaCentrado] = useState(false)
   const [verCompletados, setVerCompletados] = useState(false)
+  const idPopupAbiertoRef = useRef(null); // Para saber qué cliente estamos viendo
 
   const [visitados, setVisitados] = useState(() => {
     const llaveUsuario = `visitados_user_${user?.id || 'anonimo'}`;
@@ -80,13 +81,14 @@ const abrirNavegacion = (lat, lon) => {
             mapRef.current.flyTo(coords, 16)
             setHaCentrado(true)
           }
-          if (!userMarkerRef.current) {
-            userMarkerRef.current = L.circleMarker(coords, {
-              radius: 9, fillColor: "#3b82f6", color: "white", weight: 3, fillOpacity: 0.9
-            }).addTo(mapRef.current).bindPopup("Estás aquí")
-          } else {
-            userMarkerRef.current.setLatLng(coords)
-          }
+         if (!userMarkerRef.current) {
+  userMarkerRef.current = L.circleMarker(coords, {
+    radius: 9, fillColor: "#3b82f6", color: "white", weight: 3, fillOpacity: 0.9
+  }).addTo(mapRef.current).bindPopup("Estás aquí");
+} else {
+  // Solo actualiza la posición, no recrees el marcador
+  userMarkerRef.current.setLatLng(coords);
+}
         }
       },
       null, { enableHighAccuracy: true }
@@ -133,61 +135,66 @@ const clientesFiltrados = clientes.filter(c => {
 });
 
   useEffect(() => {
-    if (!mapRef.current || !vistaMapa) return
-    clientesMarkersRef.current.forEach(m => m.remove())
+  if (!mapRef.current || !vistaMapa) return;
+
+  // 1. En lugar de borrar todo, solo borramos lo que NO está abierto
+  clientesMarkersRef.current.forEach(m => {
+    // Si el marcador NO es el que tiene el popup abierto, lo quitamos
+    if (m.options.id_cliente !== idPopupAbiertoRef.current) {
+      m.remove();
+    }
+  });
+
+  // Filtramos los que realmente hay que dibujar (los que no están ya en el mapa)
+  const nuevosMarcadores = clientesFiltrados.map(c => {
+    // Si ya está abierto, no lo vuelvas a crear
+    if (c.id_cliente === idPopupAbiertoRef.current) return null;
+
+    const marker = L.marker([c.lat, c.lon], { 
+      icon: verCompletados ? iconoVerde : iconoAzul,
+      id_cliente: c.id_cliente // Guardamos el ID en el marcador
+    }).addTo(mapRef.current);
     
-    clientesMarkersRef.current = clientesFiltrados.map(c => {
-      // 🚩 COLOR DINÁMICO: Verde si está completado, Azul si no
-      const marker = L.marker([c.lat, c.lon], { icon: verCompletados ? iconoVerde : iconoAzul }).addTo(mapRef.current)
+    marker.bindPopup(`
+      <div style="width:190px; font-family:sans-serif;">
+        <b style="font-size:14px; color:#1e293b;">${c.cliente}</b>
+        <button id="nav-${c.id_cliente}" style="margin-top:10px; width:100%; background:#1e293b; color:white; border:none; padding:10px; border-radius:10px; font-weight:bold; cursor:pointer;">🚗 Cómo llegar</button>
+        <hr style="margin:12px 0; border:0; border-top:1px solid #eee;">
+        ${!verCompletados ? `
+          <textarea id="pop-note-${c.id_cliente}" placeholder="Escribe un comentario..." style="width:100%; border-radius:8px; border:1px solid #ddd; padding:10px; font-size:16px; box-sizing:border-box; height:60px;"></textarea>
+          <button id="btn-${c.id_cliente}" style="margin-top:10px; width:100%; background:#2563eb; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold;">Guardar Visita 📦</button>
+        ` : `<p style="color:green; font-weight:bold; margin-top:10px;">✅ Visita completada</p>`}
+      </div>
+    `, { autoClose: false, closeOnClick: false }); // 🚩 IMPORTANTE
+
+    marker.on("popupopen", () => {
+      idPopupAbiertoRef.current = c.id_cliente; // Guardamos quién se abrió
       
-      marker.bindPopup(`
-        <div style="width:190px; font-family:sans-serif;">
-          <b style="font-size:14px; color:#1e293b;">${c.cliente}</b>
-          
-          <!-- BOTÓN GPS -->
-          <button id="nav-${c.id_cliente}" 
-            style="margin-top:10px; width:100%; background:#1e293b; color:white; 
-            border:none; padding:10px; border-radius:10px; font-weight:bold; font-size:13px; cursor:pointer;">
-            🚗 Cómo llegar
-          </button>
+      const btnNav = document.getElementById(`nav-${c.id_cliente}`);
+      if (btnNav) btnNav.onclick = () => abrirNavegacion(c.lat, c.lon);
 
-          <hr style="margin:12px 0; border:0; border-top:1px solid #eee;">
-
-          ${!verCompletados ? `
-            <textarea id="pop-note-${c.id_cliente}" 
-              placeholder="Escribe un comentario..." 
-              style="width:100%; border-radius:8px; border:1px solid #ddd; 
-              padding:10px; font-size:16px; box-sizing:border-box; outline:none; height:60px;"></textarea>
-            <button id="btn-${c.id_cliente}" 
-              style="margin-top:10px; width:100%; background:#2563eb; color:white; 
-              border:none; padding:12px; border-radius:10px; font-weight:bold; font-size:14px;">
-              Guardar Visita 📦
-            </button>` : `<p style="color:green; font-weight:bold; margin-top:10px; font-size:14px;">✅ Visita completada</p>`}
-        </div>
-      `, { autoPan: false })
-
-      marker.on("popupopen", () => {
-        // Evento GPS
-        const btnNav = document.getElementById(`nav-${c.id_cliente}`);
-          if (btnNav) {
-        // Usamos las propiedades del cliente 'c' directamente
-        btnNav.onclick = () => abrirNavegacion(c.lat, c.lon);
-}
-
-        // Evento Visita
-        if (!verCompletados) {
-          const btnSave = document.getElementById(`btn-${c.id_cliente}`);
-          if (btnSave) {
-            btnSave.onclick = () => {
-              const nota = document.getElementById(`pop-note-${c.id_cliente}`).value
-              visitar(c, nota)
-            }
-          }
+      if (!verCompletados) {
+        const btnSave = document.getElementById(`btn-${c.id_cliente}`);
+        if (btnSave) {
+          btnSave.onclick = () => {
+            const nota = document.getElementById(`pop-note-${c.id_cliente}`).value;
+            visitar(c, nota);
+          };
         }
-      })
-      return marker
-    })
-  }, [clientesFiltrados, vistaMapa, verCompletados])
+      }
+    });
+
+    marker.on("popupclose", () => {
+      idPopupAbiertoRef.current = null; // Limpiamos al cerrar
+    });
+
+    return marker;
+  }).filter(m => m !== null);
+
+  // Actualizamos la lista de referencias
+  clientesMarkersRef.current = [...clientesMarkersRef.current.filter(m => m._map), ...nuevosMarcadores];
+
+}, [clientesFiltrados, vistaMapa, verCompletados]);
 
   async function visitar(cliente, comentario = "") {
     if (!miUbicacion) return alert("Esperando señal GPS... 📍")

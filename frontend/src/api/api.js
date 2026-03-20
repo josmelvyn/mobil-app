@@ -50,3 +50,21 @@ export async function enviarPunteo(data) {
   if (!res.ok) throw new Error("Error al subir a Access");
   return await res.json();
 }
+
+//4. consulta para oficina
+export const obtenerEstadoRuta = async (rutaId) => {
+  const res = await fetch(`${API}/api/monitoreo/${rutaId}`, {
+    headers: { "ngrok-skip-browser-warning": "true" }
+  });
+  if (!res.ok) throw new Error("Error en monitoreo");
+  return res.json();
+};
+
+// 5. Obtener la lista de rutas únicas para el selector
+export const obtenerListaRutas = async () => {
+  const res = await fetch(`${API}/api/lista-rutas`, {
+    headers: { "ngrok-skip-browser-warning": "true" }
+  });
+  if (!res.ok) throw new Error("Error al obtener rutas");
+  return res.json();
+};
