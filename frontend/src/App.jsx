@@ -1,22 +1,49 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Login from "./pages/Login"
 import Clientes from "./pages/Clientes"
 import Dashboard from "./pages/Dashboard"
-import MonitorOficina from "./pages/MonitorOficina" // 👈 Importamos el nuevo componente
+import MonitorOficina from "./pages/MonitorOficina"
+import { obtenerOffline } from "./db/indexedDB" // Asegúrate de importar esto
 import "leaflet/dist/leaflet.css"
 
 function App() {
+  // 1️⃣ PRIMERO: Todos los Hooks (Siempre arriba)
   const [user, setUser] = useState(null)
-  // Ahora tenemos 3 vistas: "dash", "mapa" y "admin"
-  const [vista, setVista] = useState("dash") 
+  const [vista, setVista] = useState("dash")
+  const [alertas, setAlertas] = useState(0)
 
+    useEffect(() => {
+    if (!user) return; 
+    
+    const revisar = async () => {
+      try {
+        const datos = await obtenerOffline();
+        const hoy = new Date().toDateString(); // "Fri Mar 20 2026"
+
+        // 🔍 Filtramos: solo contamos si el dato tiene la fecha de hoy
+        // Nota: Asegúrate de que al guardar la visita estés guardando un campo 'fecha'
+        const pendientesDeHoy = datos.filter(d => {
+          const fechaDato = d.fecha ? new Date(d.fecha).toDateString() : hoy; 
+          return fechaDato === hoy;
+        });
+
+        setAlertas(pendientesDeHoy.length);
+      } catch (err) { console.log(err) }
+    };
+    
+    revisar();
+    const interval = setInterval(revisar, 15000); 
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // 2️⃣ SEGUNDO: El condicional de Login (Después de los Hooks)
   if (!user) {
     return <Login setUser={setUser} />
   }
 
+  // 3️⃣ TERCERO: El resto del componente
   return (
     <div style={{ background: "#f8fafc", minHeight: "100dvh", position: "relative" }}>
-
       <main style={{ paddingBottom: "80px" }}>
         {vista === "dash" && (
           <Dashboard 
@@ -26,13 +53,12 @@ function App() {
           />
         )}
         
-        {vista === "mapa" && (
-          <Clientes user={user} />
-        )}
+        {vista === "mapa" && <Clientes user={user} />}
 
-        {/* 🖥️ VISTA DE OFICINA (MONITOR) */}
-        {vista === "admin" && (
-          <MonitorOficina rutaId={user.ruta_id} />
+        {vista === "admin" && (user?.PRUEBA == 1) ? (
+          <MonitorOficina rutaId={user?.ruta_id || user?.RUTA_ID} />
+        ) : vista === "admin" && (
+          <div style={{ padding: "20px", textAlign: "center" }}>Acceso denegado 🚫</div>
         )}
       </main>
 
@@ -52,17 +78,29 @@ function App() {
           <span style={{ fontSize: "10px", fontWeight: "bold" }}>MI RUTA</span>
         </button>
 
-        {/* 👁️ BOTÓN MONITOR (Solo para oficina/pruebas) */}
-        <button onClick={() => setVista("admin")} style={btnStyle(vista === "admin")}>
-          <span style={{ fontSize: "20px" }}>👁️</span>
-          <span style={{ fontSize: "10px", fontWeight: "bold" }}>MONITOR</span>
-        </button>
+        {user?.PRUEBA == 1 && (
+          <button 
+            onClick={() => setVista("admin")} 
+            style={{ ...btnStyle(vista === "admin"), position: "relative" }}
+          >
+            <span style={{ fontSize: "20px" }}>👁️</span>
+            <span style={{ fontSize: "10px", fontWeight: "bold" }}>MONITOR</span>
+            
+            {/* 🔴 PUNTO DE NOTIFICACIÓN */}
+            {alertas > 0 && (
+              <div style={{
+                position: "absolute", top: "5px", right: "15px",
+                width: "10px", height: "10px", backgroundColor: "#ef4444",
+                borderRadius: "50%", border: "2px solid white"
+              }}></div>
+            )}
+          </button>
+        )}
       </nav>
     </div>
   )
 }
 
-// Función auxiliar para no repetir estilos en los botones
 const btnStyle = (activo) => ({
   border: "none", background: "none", 
   color: activo ? "#2563eb" : "#94a3b8",

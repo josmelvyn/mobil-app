@@ -224,32 +224,40 @@ const clientesFiltrados = clientes.filter(c => {
 }, [clientesFiltrados, vistaMapa, verCompletados]);
 
   async function visitar(cliente, comentario = "") {
-    if (!miUbicacion) return alert("Esperando señal GPS... 📍")
-    const llaveUser = `visitados_user_${user?.id_usuario || user?.id || 'anonimo'}`;
-    const nuevosVisitados = [...visitados, cliente.id_cliente];
-    setVisitados(nuevosVisitados);
-    localStorage.setItem(llaveUser, JSON.stringify(nuevosVisitados));
+  if (!miUbicacion) return alert("Esperando señal GPS... 📍")
+  
+  const llaveUser = `visitados_user_${user?.id_usuario || user?.id || 'anonimo'}`;
+  const nuevosVisitados = [...visitados, cliente.id_cliente];
+  
+  setVisitados(nuevosVisitados);
+  localStorage.setItem(llaveUser, JSON.stringify(nuevosVisitados));
 
-    if(mapRef.current){
-      mapRef.current.closePopup();
-    }
-    
-    const distanciaMetros = L.latLng(miUbicacion).distanceTo([cliente.lat, cliente.lon])
-    if (distanciaMetros > 10000000000) {
-      alert(`⚠️ Estás muy lejos del cliente (${Math.round(distanciaMetros)} metros).`)
-      return
-    }
-
-    const data = { 
-      cliente_id: Number(cliente.id_cliente), 
-      lat: miUbicacion[0], 
-      lon: miUbicacion[1], 
-      comentario 
-    }
-
-    await guardarOffline(data)
-    alert("Guardado en memoria del celular 📦")
+  if(mapRef.current){
+    mapRef.current.closePopup();
   }
+  
+  const distanciaMetros = L.latLng(miUbicacion).distanceTo([cliente.lat, cliente.lon])
+  
+  // ⚠️ Nota: He mantenido tu validación de distancia, 
+  // pero recuerda que 10,000,000,000 metros es casi la distancia a otro planeta.
+  if (distanciaMetros > 10000000000) {
+    alert(`⚠️ Estás muy lejos del cliente (${Math.round(distanciaMetros)} metros).`)
+    return
+  }
+
+  const data = { 
+    cliente_id: Number(cliente.id_cliente), 
+    lat: miUbicacion[0], 
+    lon: miUbicacion[1], 
+    comentario,
+    // 📅 AGREGAMOS LA FECHA AQUÍ:
+    fecha: new Date().toISOString() 
+  }
+  alert("fecha a guardar:"+ data.fecha);
+
+  await guardarOffline(data)
+  alert("Guardado en memoria del celular 📦")
+}
 
   async function sincronizar() {
     const pendientes = await obtenerOffline()

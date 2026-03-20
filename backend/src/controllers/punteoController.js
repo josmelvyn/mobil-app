@@ -12,50 +12,54 @@ function distanciaMetros(lat1, lon1, lat2, lon2) {
 }
 
 const registrar = async (req, res) => {
-  const { cliente_id, lat, lon, comentario } = req.body
+  // 1️⃣ Extraemos 'fecha' del cuerpo de la petición (la que envió el celular)
+  const { cliente_id, lat, lon, comentario, fecha } = req.body
   console.log("📥 Recibido punteo para cliente:", cliente_id);
 
   try {
     const db = await connectDB()
 
-    // 🚩 CORRECCIÓN DE FECHA: Usar fecha local del PC (Mes/Día/Año para Access)
-    const d = new Date();
-    const fecha = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
-    console.log("📅 Fecha procesada:", fecha);
+    // 2️⃣ Procesamos la fecha que viene del celular (ISO String)
+    const d = new Date(fecha || new Date()); // Si no trae fecha, usa la actual por seguridad
+    
+    // Formato para el SELECT (Solo día)
+    const soloDia = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+    
+    // Formato para el INSERT (Día + Hora del momento del punteo)
+    const fechaConHora = `${soloDia} ${d.getHours()}:${d.getMinutes()}:${d.getSeconds()}`;
+    
+    console.log("📅 Hora original del punteo (Offline/Online):", fechaConHora);
 
-    // 1️⃣ Verificar duplicados
-    const existe = await db.query(`SELECT * FROM punteos WHERE cliente_id=${cliente_id} AND fecha=#${fecha}#`);
+    // 🔍 3️⃣ Verificar duplicados (Usamos solo el día)
+    const existe = await db.query(`SELECT * FROM punteos WHERE cliente_id=${cliente_id} AND fecha=#${soloDia}#`);
     if (existe.length > 0) {
       return res.json({ ok: false, mensaje: "Ya visitado hoy" });
     }
 
-    // 2️⃣ Obtener coordenadas del cliente
+    // 📍 4️⃣ Obtener coordenadas y validar distancia
     const datosCliente = await db.query(`SELECT lat, lon FROM CLIENTES_wialon WHERE id_cliente=${cliente_id}`);
-    if (datosCliente.length === 0) {
-      return res.json({ ok: false, mensaje: "Cliente no existe en Access" });
+    if (datosCliente.length > 0) {
+      const cLat = parseFloat(datosCliente[0].lat);
+      const cLon = parseFloat(datosCliente[0].lon);
+      const distancia = distanciaMetros(lat, lon, cLat, cLon);
+
+      if (distancia > 1000000) { 
+        return res.json({ ok: false, mensaje: `Muy lejos: ${Math.round(distancia)}m.` });
+      }
     }
 
-    const cLat = parseFloat(datosCliente[0].lat);
-    const cLon = parseFloat(datosCliente[0].lon);
-    const distancia = distanciaMetros(lat, lon, cLat, cLon);
-
-    // 3️⃣ Validar distancia (ajustado a 50 metros)
-    if (distancia > 1000000) { 
-      return res.json({ ok: false, mensaje: `Muy lejos: ${Math.round(distancia)}m. Acércate más.` });
-    }
-
-    // 4️⃣ GUARDAR
+    // 💾 5️⃣ INSERTAR CON LA HORA ORIGINAL
     await db.query(`
       INSERT INTO punteos (cliente_id, fecha, lat, lon, comentario)
-      VALUES (${cliente_id}, #${fecha}#, ${lat}, ${lon}, '${comentario || ""}')
+      VALUES (${cliente_id}, #${fechaConHora}#, ${lat}, ${lon}, '${comentario || ""}')
     `);
 
-    console.log("✅ Insertado en Access correctamente");
+    console.log("✅ Insertado con éxito con su hora original");
     res.json({ ok: true });
 
   } catch (err) {
     console.error("❌ ERROR CRÍTICO EN ACCESS:", err);
-    res.status(500).json({ ok: false, error: "Fallo al escribir en base de datos" });
+    res.status(500).json({ ok: false, error: "Fallo en BD" });
   }
 }
 
