@@ -1,4 +1,5 @@
 const { connectDB } = require("../config/database")
+const punteoController = require("../controllers/punteoController");
 
 function distanciaMetros(lat1, lon1, lat2, lon2) {
   const R = 6371000
@@ -63,4 +64,39 @@ const registrar = async (req, res) => {
   }
 }
 
-module.exports = { registrar }
+const actualizarCoordenadas = async (req, res) => {
+  const { cliente_id, lat, lon } = req.body;
+  try {
+    const db = await connectDB();
+    await db.query(`UPDATE CLIENTES_wialon SET lat = ${lat}, lon = ${lon} WHERE id_cliente = ${cliente_id}`);
+    res.json({ ok: true, mensaje: "Ubicación actualizada" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Error en BD" });
+  }
+};
+
+// 🆕 Función para crear un cliente totalmente nuevo desde cero
+const crearClienteNuevo = async (req, res) => {
+  const { nombre, lat, lon, ruta_id } = req.body;
+  try {
+    const db = await connectDB();
+    
+    // Generamos un ID temporal para el campo viejo que no sea 0
+    const idTemporal = Math.floor(Math.random() * 3127);
+    const nombreLimpio = nombre.replace(/'/g, "''");
+
+    const sql = `
+      INSERT INTO CLIENTES_wialon (id_cliente, cliente, lat, lon, ruta_id) 
+      VALUES (${idTemporal}, '${nombreLimpio}', ${lat}, ${lon}, ${ruta_id})
+    `;
+    
+    await db.query(sql);
+    res.json({ ok: true, mensaje: "Cliente creado con éxito" });
+  } catch (err) {
+    console.error("❌ Error SQL:", err);
+    res.status(500).json({ ok: false, error: "Error al duplicar ID o nombre" });
+  }
+};
+
+module.exports = { registrar, actualizarCoordenadas, crearClienteNuevo };

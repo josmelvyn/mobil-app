@@ -3,25 +3,36 @@ import Login from "./pages/Login"
 import Clientes from "./pages/Clientes"
 import Dashboard from "./pages/Dashboard"
 import MonitorOficina from "./pages/MonitorOficina"
-import { obtenerOffline } from "./db/indexedDB" // Asegúrate de importar esto
+import { obtenerOffline } from "./db/indexedDB" 
 import "leaflet/dist/leaflet.css"
 
 function App() {
-  // 1️⃣ PRIMERO: Todos los Hooks (Siempre arriba)
-  const [user, setUser] = useState(null)
+  // 1️⃣ MODIFICADO: Leer usuario del celular al iniciar
+  const [user, setUser] = useState(() => {
+    const sesionGuardada = localStorage.getItem("sesion_usuario");
+    return sesionGuardada ? JSON.parse(sesionGuardada) : null;
+  });
+
   const [vista, setVista] = useState("dash")
   const [alertas, setAlertas] = useState(0)
 
-    useEffect(() => {
+  // 2️⃣ NUEVO: Guardar o borrar la sesión en el celular automáticamente
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("sesion_usuario", JSON.stringify(user));
+    } else {
+      localStorage.removeItem("sesion_usuario");
+    }
+  }, [user]);
+
+  useEffect(() => {
     if (!user) return; 
     
     const revisar = async () => {
       try {
         const datos = await obtenerOffline();
-        const hoy = new Date().toDateString(); // "Fri Mar 20 2026"
+        const hoy = new Date().toDateString();
 
-        // 🔍 Filtramos: solo contamos si el dato tiene la fecha de hoy
-        // Nota: Asegúrate de que al guardar la visita estés guardando un campo 'fecha'
         const pendientesDeHoy = datos.filter(d => {
           const fechaDato = d.fecha ? new Date(d.fecha).toDateString() : hoy; 
           return fechaDato === hoy;
@@ -36,12 +47,11 @@ function App() {
     return () => clearInterval(interval);
   }, [user]);
 
-  // 2️⃣ SEGUNDO: El condicional de Login (Después de los Hooks)
+  // Si no hay usuario (ni en estado ni en localStorage), mostrar Login
   if (!user) {
     return <Login setUser={setUser} />
   }
 
-  // 3️⃣ TERCERO: El resto del componente
   return (
     <div style={{ background: "#f8fafc", minHeight: "100dvh", position: "relative" }}>
       <main style={{ paddingBottom: "80px" }}>
@@ -86,7 +96,6 @@ function App() {
             <span style={{ fontSize: "20px" }}>👁️</span>
             <span style={{ fontSize: "10px", fontWeight: "bold" }}>MONITOR</span>
             
-            {/* 🔴 PUNTO DE NOTIFICACIÓN */}
             {alertas > 0 && (
               <div style={{
                 position: "absolute", top: "5px", right: "15px",
@@ -108,4 +117,4 @@ const btnStyle = (activo) => ({
   cursor: "pointer"
 });
 
-export default App
+export default App;

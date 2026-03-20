@@ -278,6 +278,68 @@ const clientesFiltrados = clientes.filter(c => {
       alert("❌ Error: No se puede conectar al servidor.")
     }
   }
+
+  async function fijarCoordenadas(id_cliente) {
+  if (!miUbicacion) return alert("Esperando GPS... 📍");
+  
+  if (!window.confirm("¿Deseas guardar tu ubicación actual como la dirección de este cliente?")) return;
+
+  try {
+    // 🚩 CAMBIA "tu_url_api" por la dirección real de tu servidor (ej: http://192.168.1.10:3001)
+ const response = await fetch("https://miyoko-unreleased-overfavorably.ngrok-free.dev/api/punteo/crear-cliente", { 
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    nombre: nombre.toUpperCase(),
+    lat: miUbicacion, 
+    lon: miUbicacion, 
+    ruta_id: user?.ruta_id || user?.RUTA_ID || 1
+  })
+});
+    
+    const res = await response.json();
+    if (res.ok) {
+      alert("✅ Ubicación guardada con éxito.");
+    alert("✅ ¡Cliente '" + nombre + "' registrado con éxito!");
+    }
+  } catch (err) {
+    alert("❌ Error al conectar con el servidor");
+  }
+}
+async function registrarClienteNuevo() {
+  if (!miUbicacion) return alert("Esperando señal GPS... 📍");
+
+  const nombre = prompt("Escribe el nombre del nuevo negocio:");
+  if (!nombre) return;
+
+  try {
+    // 🚩 IMPORTANTE: Agrega "/api/crear-cliente" al final de la URL
+   const URL_FINAL = "https://miyoko-unreleased-overfavorably.ngrok-free.dev/api/punteo/crear-cliente";
+
+console.log("🚀 Enviando petición a:", URL_FINAL); // Esto debe salir en F12
+
+const response = await fetch(URL_FINAL, { 
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    nombre: nombre.toUpperCase(),
+    lat: miUbicacion[0], // Latitud (primer valor del array)
+    lon: miUbicacion[1], // Longitud (segundo valor del array)
+    ruta_id: Number(user?.ID_USUARIO || user?.ruta_id || 1)
+  })
+});
+
+    const res = await response.json();
+    if (res.ok) {
+      alert("✅ ¡Cliente registrado con éxito!");
+      window.location.reload(); 
+    } else {
+      alert("❌ Error: " + (res.error || "No se pudo crear"));
+    }
+  } catch (err) {
+    alert("❌ Error de red: El servidor no respondió.");
+  }
+}
 // 🗑️ FUNCIÓN PARA BORRAR TODO DE RAÍZ
 const borrarHistorialCompleto = async () => {
   const confirmar = window.confirm("¿Estás seguro de borrar todos los datos locales?");
@@ -308,6 +370,7 @@ const borrarHistorialCompleto = async () => {
 };
 
   return (
+    
     <div style={{ height: "100dvh", width: "100%", position: "relative", background: "#f8fafc", overflow: "hidden" }}>
       
       {/* HEADER TÁCTIL */}
@@ -316,9 +379,32 @@ const borrarHistorialCompleto = async () => {
         background: "rgba(255,255,255,0.95)", backdropFilter: "blur(10px)",
         padding: "12px", borderRadius: "22px", boxShadow: "0 8px 25px rgba(0,0,0,0.12)"
       }}>
+        
+
         <input type="text" placeholder="Buscar cliente..." value={filtro} onChange={(e) => setFiltro(e.target.value)} 
           style={{ width: "100%", border: "none", background: "transparent", outline: "none", fontSize: "16px", marginBottom: "12px", padding: "4px" }} />
-        
+         {/* 🆕 BOTÓN NUEVO CLIENTE (Insertado aquí) */}
+      <button 
+        onClick={registrarClienteNuevo}
+        style={{ 
+          width: "100%", 
+          background: "#10b981", 
+          color: "white", 
+          border: "none", 
+          padding: "10px", 
+          borderRadius: "12px", 
+          fontSize: "13px", 
+          fontWeight: "bold", 
+          marginBottom: "12px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          boxShadow: "0 4px 10px rgba(16,185,129,0.2)"
+        }}
+      >
+        <span>➕</span> REGISTRAR CLIENTE NUEVO AQUÍ 📍
+      </button>
         <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}>
           <div style={{ display: "flex", gap: "4px", background: "#f1f5f9", padding: "3px", borderRadius: "10px" }}>
             <button onClick={() => setVerCompletados(false)} style={{ border: "none", background: !verCompletados ? "white" : "transparent", padding: "6px 12px", borderRadius: "8px", fontSize: "11px", fontWeight: "800", color: !verCompletados ? "#2563eb" : "#64748b", boxShadow: !verCompletados ? "0 2px 5px rgba(0,0,0,0.05)" : "none" }}>Pendientes</button>
@@ -374,6 +460,7 @@ const borrarHistorialCompleto = async () => {
     fontWeight: "bold" 
   }}
 >
+  
   BORRAR HISTORIAL LOCAL 🗑️
 </button>
         </div>
@@ -384,5 +471,6 @@ const borrarHistorialCompleto = async () => {
         <button onClick={() => mapRef.current.flyTo(miUbicacion, 17)} style={{ position: "absolute", bottom: 25, right: 20, zIndex: 1000, background: "white", border: "none", width: "54px", height: "54px", borderRadius: "27px", boxShadow: "0 5px 15px rgba(0,0,0,0.2)", fontSize: "22px", display: "flex", alignItems: "center", justifyContent: "center" }}>🎯</button>
       )}
     </div>
+    
   )
 }
