@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { obtenerOffline, limpiarOffline } from "../db/indexedDB";
 import { enviarPunteo, obtenerClientes } from "../api/api";
 
+
 // 📅 Función para obtener el número de día (Lunes=1 ... Domingo=7)
 const obtenerDiaNumero = () => {
   const diaJS = new Date().getDay();
@@ -13,13 +14,42 @@ export default function Dashboard({ onVerMapa, user, setUser }) {
   const [pendientesSync, setPendientesSync] = useState(0);
   const [sincronizando, setSincronizando] = useState(false);
   const [actualizando, setActualizando] = useState(false);
+  //console.log("Datos del usuario loggeado: ",user);
 
-  useEffect(() => {
+  
+
+ useEffect(() => {
+    if (!user) return;
+
     const llaveUser = `visitados_user_${user?.id_usuario || user?.id || 'anonimo'}`;
-    const datos = JSON.parse(localStorage.getItem(llaveUser) || "[]");
-    setVisitados(datos);
-    obtenerOffline().then(datosDB => setPendientesSync(datosDB.length));
+    const llaveFecha = `ultima_fecha_user_${user?.id_usuario || user?.id || 'anonimo'}`;
+    
+    const hoy = new Date().toDateString();
+    const ultimaFecha = localStorage.getItem(llaveFecha);
+
+    let datosCargados = [];
+
+    if (ultimaFecha !== hoy) {
+      // 🌞 NUEVO DÍA: Limpiamos todo
+      localStorage.removeItem(llaveUser);
+      localStorage.setItem(llaveFecha, hoy);
+      datosCargados = []; // Empezamos de cero
+      console.log("🌞 Día nuevo: Dashboard reiniciado.");
+    } else {
+      // 📅 MISMO DÍA: Recuperamos lo guardado
+      const guardado = localStorage.getItem(llaveUser);
+      datosCargados = guardado ? JSON.parse(guardado) : [];
+    }
+
+    // Actualizamos los estados
+    setVisitados(datosCargados);
+    
+    // Buscamos pendientes en IndexedDB sin importar el día
+    obtenerOffline().then(datosDB => {
+      setPendientesSync(datosDB.length);
+    });
   }, [user]);
+
 
   // 📊 CÁLCULOS DE CLIENTES
   const { totalGeneral, hoyTotal, hoyPendientes, porcenHoy } = useMemo(() => {
@@ -90,13 +120,18 @@ export default function Dashboard({ onVerMapa, user, setUser }) {
   return (
     <div style={{ padding: "20px", background: "#f8fafc", minHeight: "100vh", paddingBottom: "100px", fontFamily: "sans-serif" }}>
       
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-        <div>
-          <h1 style={{ fontSize: "20px", fontWeight: "900", color: "#1e293b", margin: 0 }}>Hola, {user?.usuario || 'Chofer'} 👋</h1>
-          <span style={{ fontSize: "12px", color: "#2563eb", fontWeight: "bold" }}>AGUA MARIA</span>
-        </div>
-        <button onClick={manejarCerrarSesion} style={{ background: "#fee2e2", color: "#ef4444", border: "none", padding: "8px 12px", borderRadius: "12px", fontWeight: "bold", fontSize: "11px" }}>Salir 🚪</button>
-      </div>
+     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+  <div>
+    {/* 👤 Aquí mostramos el nombre del usuario loggeado */}
+  <h1 style={{ fontSize: "20px", fontWeight: "900", color: "#1e293b", margin: 0 }}>
+  Hola, {user?.USUARIO || user?.Nombre_Usuario || 'Chofer'} 👋
+</h1>
+    <span style={{ fontSize: "12px", color: "#2563eb", fontWeight: "bold" }}>AGUA MARIA</span>
+  </div>
+  <button onClick={manejarCerrarSesion} style={{ background: "#fee2e2", color: "#ef4444", border: "none", padding: "8px 12px", borderRadius: "12px", fontWeight: "bold", fontSize: "11px" }}>
+    Salir 🚪
+  </button>
+</div>
 
       {/* PROGRESO DE HOY */}
       <div style={{ background: "white", padding: "25px", borderRadius: "28px", boxShadow: "0 10px 25px rgba(0,0,0,0.05)", marginBottom: "20px", textAlign: "center" }}>

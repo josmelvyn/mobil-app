@@ -47,12 +47,39 @@ export default function Clientes({ user }) {
     return saved ? JSON.parse(saved) : [];
   });
 
-  useEffect(() => {
-    if (user) {
+ useEffect(() => {
+    if (!user) return;
+    
+    const hoy = new Date().toDateString(); // Ejemplo: "Fri Mar 20 2026"
+    const llaveFecha = `ultima_fecha_user_${user.id}`;
+    const ultimaFecha = localStorage.getItem(llaveFecha);
+
+    // Si la fecha guardada es distinta a la de hoy, limpiamos
+    if (ultimaFecha !== hoy) {
       const llaveUsuario = `visitados_user_${user.id}`;
-      localStorage.setItem(llaveUsuario, JSON.stringify(visitados));
+      setVisitados([]); // Vacía la lista en pantalla
+      localStorage.removeItem(llaveUsuario); // Borra del celular
+      localStorage.setItem(llaveFecha, hoy); // Guarda la nueva fecha de hoy
+      console.log("🌞 Día nuevo detectado: Lista de visitas reiniciada");
     }
-  }, [visitados, user]);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    
+    const hoy = new Date().toDateString(); // Ejemplo: "Fri Mar 20 2026"
+    const llaveFecha = `ultima_fecha_user_${user.id}`;
+    const ultimaFecha = localStorage.getItem(llaveFecha);
+
+    // Si la fecha guardada es distinta a la de hoy, limpiamos
+    if (ultimaFecha !== hoy) {
+      const llaveUsuario = `visitados_user_${user.id}`;
+      setVisitados([]); // Vacía la lista en pantalla
+      localStorage.removeItem(llaveUsuario); // Borra del celular
+      localStorage.setItem(llaveFecha, hoy); // Guarda la nueva fecha de hoy
+      console.log("🌞 Día nuevo detectado: Lista de visitas reiniciada");
+    }
+  }, [user]);
 
   // 🚀 FUNCIÓN GPS CORREGIDA
 const abrirNavegacion = (lat, lon) => {
@@ -202,6 +229,10 @@ const clientesFiltrados = clientes.filter(c => {
     const nuevosVisitados = [...visitados, cliente.id_cliente];
     setVisitados(nuevosVisitados);
     localStorage.setItem(llaveUser, JSON.stringify(nuevosVisitados));
+
+    if(mapRef.current){
+      mapRef.current.closePopup();
+    }
     
     const distanciaMetros = L.latLng(miUbicacion).distanceTo([cliente.lat, cliente.lon])
     if (distanciaMetros > 10000000000) {
