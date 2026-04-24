@@ -36,6 +36,7 @@ export default defineConfig({
       }
     })
   ],
+  //conexion server
   server: {
     https: true,
     host: true,
