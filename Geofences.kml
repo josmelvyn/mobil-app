@@ -1,0 +1,320 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<kml>
+    <Document>
+        <name>
+            Geofences
+        </name>
+        <Placemark>
+            <name>
+                Lance Food Desayuno escolar
+            </name>
+            <description>
+                Lance food, C/bienvenido #74 entre la farmacia nordestana y grego Muebles.
+            </description>
+            <Point>
+                <coordinates>
+                    -70.25523,19.28943,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Moto Repuestos Paredes
+            </name>
+            <description>
+                Moto Repuestos paredes, Calle la palma #100 frente al mini market las 8 esquinas.
+            </description>
+            <Point>
+                <coordinates>
+                    -70.257275,19.288183,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                SFM Sports y Racquet Club Soclb Srl
+            </name>
+            <description>
+                Salida Santo Domingo dentro del proyecto residencial premium
+            </description>
+            <Point>
+                <coordinates>
+                    -70.300852,19.26434,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Colmado Ramona
+            </name>
+            <description>
+                Calle principal #59 urbanización mirador del Jaya, Sfm
+            </description>
+            <Point>
+                <coordinates>
+                    -70.284217,19.284751,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Carolina Comercial 2
+            </name>
+            <description>
+                Calle Sánchez, esquina 1 del ensanche Duarte, Frente al taller de Carbucio sfm
+            </description>
+            <Point>
+                <coordinates>
+                    -70.249928,19.292515,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Cafetería Las Frias (Los maestros)
+            </name>
+            <description>
+                Calle Hernán José Sánchez, #57, A 3 esquinas Del Gym Olimpus, Los maestros
+            </description>
+            <Point>
+                <coordinates>
+                    -70.253898,19.281007,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Cafetería Ismael (Jaya)
+            </name>
+            <description>
+                Próximo al liceo pedro mir, carretera principal Jaya, Sfm
+            </description>
+            <Point>
+                <coordinates>
+                    -70.236633,19.350972,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Virgilio Santos (MAIMORO)
+            </name>
+            <description>
+                C/principal, Maimoro, Jaya, Sfm
+            </description>
+            <Point>
+                <coordinates>
+                    -70.242448,19.363091,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Luisa Payano (Jaya)
+            </name>
+            <description>
+                Calle Principal #89, Maimoro, Jaya,Sfm
+            </description>
+            <Point>
+                <coordinates>
+                    -70.237341,19.358406,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Colmado el parador (Jaya)
+            </name>
+            <description>
+                Calle Principal/ loma del Jaya
+            </description>
+            <Point>
+                <coordinates>
+                    -70.229132,19.383499,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Colmado y pollera Marte
+            </name>
+            <description>
+                Calle principal Frente a la iglesia, Jaya sfm
+            </description>
+            <Point>
+                <coordinates>
+                    -70.236159,19.350466,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Ingeniero José Eugenio Marizan then
+            </name>
+            <description>
+                Calle 3ra #8 Una esquina antes del colmado Jerlin, Urbanización Campo Fernández
+            </description>
+            <Point>
+                <coordinates>
+                    -70.280822,19.276701,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Cherry SC,Eirl(Cocina)
+            </name>
+            <description>
+                C/ Saturno#13, Urb Andújar, entrando por Tropicana Restautant
+            </description>
+            <Point>
+                <coordinates>
+                    -70.269637,19.285236,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Casa Luis Rodríguez
+            </name>
+            <description>
+                Calle aurora Paulino #7 entrando por Maikito a 1 esquina
+            </description>
+            <Point>
+                <coordinates>
+                    -70.26278,19.289092,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Salón Inés
+            </name>
+            <description>
+                Calle Duverge, Entre la Salcedo y la imbert
+            </description>
+            <Point>
+                <coordinates>
+                    -70.258155,19.292106,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Menchig Buffet
+            </name>
+            <description>
+                Calle 7, el Capasito. Frente a Mendoza súper fría
+            </description>
+            <Point>
+                <coordinates>
+                    -70.260026,19.290279,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Bodega Pichardo
+            </name>
+            <description>
+                Bodega Pichardo, los jardines,despues del colmado alba
+            </description>
+            <Point>
+                <coordinates>
+                    -70.257052,19.324103,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Centro de Belleza tina
+            </name>
+            <description>
+                Calle San Francisco, Casi esquina Emilio prudome, frente al parqueo cruz cortorreal
+            </description>
+            <Point>
+                <coordinates>
+                    -70.253283,19.293028,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Cafetería RYM
+            </name>
+            <description>
+                Calle C/#5 Santa Ana detrás de la escuela
+            </description>
+            <Point>
+                <coordinates>
+                    -70.264139,19.298041,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Colmado Nata
+            </name>
+            <description>
+                Colmado nata, Camino al Medio vista al valle, al lado de bodega la Fama
+            </description>
+            <Point>
+                <coordinates>
+                    -70.269191,19.311133,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                El mondongo de Yani
+            </name>
+            <description>
+                Calle principal casa #30 Naranjo Dulce, Antes de llegar al club los cocos
+            </description>
+            <Point>
+                <coordinates>
+                    -70.2295,19.336094,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Colmado Henríquez Gonzales (kike)
+            </name>
+            <description>
+                Colmado Henríquez (kike) Calle 7 después del colmado el pacha, 24 de abril
+            </description>
+            <Point>
+                <coordinates>
+                    -70.256794,19.307882,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Frías Auto Sonido
+            </name>
+            <description>
+                Frías Auto sonido, Avenida Libertad, Entre la Bono y la José Reyes
+            </description>
+            <Point>
+                <coordinates>
+                    -70.251186,19.296397,0
+                </coordinates>
+            </Point>
+        </Placemark>
+        <Placemark>
+            <name>
+                Pica Pollo Ruiz
+            </name>
+            <description>
+                Pica pollo Ruiz, C/bienvenido #32 casi esquina 4 San Martín
+            </description>
+            <Point>
+                <coordinates>
+                    -70.253925,19.29043,0
+                </coordinates>
+            </Point>
+        </Placemark>
+    </Document>
+</kml>
